@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BHARAT | The Journey Through Indian Civilization</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --color-bg: #030303;
+            --color-gold: #D4AF37;
+            --color-gold-dim: #8a701e;
+            --color-copper: #b87333;
+            --color-stone: #2c2c2c;
+            --color-text: #e0e0e0;
+            --font-display: 'Cinzel', serif;
+            --font-body: 'Lato', sans-serif;
+            --font-quote: 'Playfair Display', serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            font-family: var(--font-body);
+            overflow: hidden; /* Hide default scroll, use Lenis */
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Canvas Container */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            outline: none;
+        }
+
+        /* UI Overlay Layer */
+        #ui-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none; /* Let clicks pass to 3D unless specific elements */
+        }
+
+        /* Loader */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 1.5s ease-in-out;
+            pointer-events: all;
+        }
+
+        .loader-text {
+            font-family: var(--font-display);
+            color: var(--color-gold);
+            font-size: 2rem;
+            letter-spacing: 0.5em;
+            opacity: 0;
+            animation: fadeIn 2s forwards;
+            text-transform: uppercase;
+        }
+
+        .loader-sub {
+            font-family: var(--font-body);
+            color: var(--color-stone);
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            opacity: 0;
+            animation: fadeIn 2s 1s forwards;
+        }
+
+        .progress-bar {
+            width: 200px;
+            height: 1px;
+            background: #222;
+            margin-top: 2rem;
+            position: relative;
+            overflow: hidden;
+            opacity: 0;
+            animation: fadeIn 2s 1.5s forwards;
+        }
+
+        .progress-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 0%;
+            background: var(--color-gold);
+            transition: width 0.5s;
+        }
+
+        /* Custom Cursor */
+        #cursor {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 20px;
+            height: 20px;
+            border: 1px solid var(--color-gold);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 999;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s, background 0.3s;
+            mix-blend-mode: difference;
+        }
+
+        #cursor.hovered {
+            width: 50px;
+            height: 50px;
+            background: rgba(212, 175, 55, 0.2);
+            border-color: transparent;
+        }
+
+        /* Content Sections (Fixed Position, Opacity driven by scroll) */
+        .section-content {
+            position: absolute;
+            width: 100%;
+            max-width: 600px;
+            padding: 2rem;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.8s ease, transform 0.8s ease;
+            /* Positioning will be handled by JS/CSS specific classes per section */
+        }
+
+        .section-content.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .section-title {
+            font-family: var(--font-display);
+            font-size: 3rem;
+            color: var(--color-gold);
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+            line-height: 1.1;
+        }
+
+        .section-era {
+            font-family: var(--font-body);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--color-copper);
+            margin-bottom: 1.5rem;
+            display: block;
+            border-left: 2px solid var(--color-gold);
+            padding-left: 1rem;
+        }
+
+        .section-desc {
+            font-family: var(--font-quote);
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Positioning classes for sections */
+        #sec-0 { top: 40%; left: 10%; text-align: center; width: 80%; } /* Intro */
+        #sec-1 { top: 20%; right: 5%; text-align: right; }
+        #sec-2 { top: 30%; left: 5%; }
+        #sec-3 { top: 50%; right: 10%; }
+        #sec-4 { top: 30%; left: 10%; }
+        #sec-5 { top: 40%; right: 5%; }
+        #sec-6 { top: 25%; left: 5%; }
+        #sec-7 { top: 40%; right: 10%; }
+        #sec-8 { top: 35%; left: 10%; }
+        #sec-9 { top: 40%; left: 50%; transform: translate(-50%, -20%); text-align: center; width: 100%; max-width: 800px; }
+        #sec-9.active { transform: translate(-50%, 0); }
+
+        /* Navigation / Progress */
+        #progress-indicator {
+            position: fixed;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 20;
+        }
+
+        .nav-dot {
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .nav-dot.active {
+            background: var(--color-gold);
+            box-shadow: 0 0 10px var(--color-gold);
+            transform: scale(1.5);
+        }
+
+        /* Audio Toggle */
+        #audio-toggle {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            z-index: 20;
+            color: var(--color-gold);
+            font-family: var(--font-body);
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            padding: 10px 20px;
+            border-radius: 50px;
+            transition: all 0.3s;
+            pointer-events: all;
+        }
+
+        #audio-toggle:hover {
+            background: rgba(212, 175, 55, 0.1);
+            border-color: var(--color-gold);
+        }
+
+        /* Scroll Down Hint */
+        .scroll-hint {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            opacity: 0.7;
+            animation: fadeUp 2s infinite;
+            z-index: 5;
+        }
+        .scroll-line {
+            width: 1px;
+            height: 40px;
+            background: linear-gradient(to bottom, var(--color-gold), transparent);
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+        @keyframes fadeUp {
+            0%, 100% { transform: translate(-50%, 0); opacity: 0.3; }
+            50% { transform: translate(-50%, 10px); opacity: 0.8; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .section-title { font-size: 2rem; }
+            .section-content { width: 90%; left: 5% !important; right: 5% !important; text-align: center !important; }
+            .section-era { margin-left: auto; margin-right: auto; border-left: none; border-bottom: 1px solid var(--color-copper); padding-bottom: 0.5rem; display: inline-block; }
+            #progress-indicator { right: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Custom Cursor -->
+    <div id="cursor"></div>
+
+    <!-- Loader -->
+    <div id="loader">
+        <div class="loader-text">Bharat</div>
+        <div class="loader-sub">5000 Years of Civilization</div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+
+    <!-- WebGL Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- UI Overlay -->
+    <div id="ui-layer">
+        
+        <!-- Section 0: Intro -->
+        <div id="sec-0" class="section-content active">
+            <h1 class="section-title" style="font-size: 4rem;">BHARAT</h1>
+            <span class="section-era">The Eternal Journey</span>
+            <p class="section-desc">Scroll to explore the history of the world's oldest living civilization.</p>
+            <div class="scroll-hint">
+                <span style="font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase;">Begin</span>
+                <div class="scroll-line"></div>
+            </div>
+        </div>
+
+        <!-- Section 1: Indus Valley -->
+        <div id="sec-1" class="section-content">
+            <span class="section-era">3300 BCE – 1300 BCE</span>
+            <h2 class="section-title">Indus Valley</h2>
+            <p class="section-desc">The dawn of urbanization. Mohenjo-daro and Harappa rose from the dust with advanced drainage, grid plans, and mysterious seals that whisper of a trade-savvy, peaceful society.</p>
+        </div>
+
+        <!-- Section 2: Vedic Age -->
+        <div id="sec-2" class="section-content">
+            <span class="section-era">1500 BCE – 500 BCE</span>
+            <h2 class="section-title">Vedic Age</h2>
+            <p class="section-desc">Fires of sacrifice illuminated the night. The Vedas were composed, revealing the cosmic order (Rta). Philosophy, mathematics, and astronomy took root in the minds of Rishis.</p>
+        </div>
+
+        <!-- Section 3: Mauryan Empire -->
+        <div id="sec-3" class="section-content">
+            <span class="section-era">322 BCE – 185 BCE</span>
+            <h2 class="section-title">Mauryan Empire</h2>
+            <p class="section-desc">Chandragupta united the land. Ashoka the Great transformed conquest into compassion after Kalinga. Sandstone pillars etched with dharma stood tall across the realm.</p>
+        </div>
+
+        <!-- Section 4: Gupta Age -->
+        <div id="sec-4" class="section-content">
+            <span class="section-era">320 CE – 550 CE</span>
+            <h2 class="section-title">The Golden Age</h2>
+            <p class="section-desc">Art, science, and culture flourished under the Guptas. Nalanda illuminated minds. Aryabhata calculated the stars. Kalidasa penned poetry that echoed through eternity.</p>
+        </div>
+
+        <!-- Section 5: Medieval India -->
+        <div id="sec-5" class="section-content">
+            <span class="section-era">600 CE – 1500 CE</span>
+            <h2 class="section-title">Medieval Splendor</h2>
+            <p class="section-desc">A tapestry of kingdoms. The Cholas built maritime empires, while Rajputana valor echoed in stone forts. Temples rose like mountains, carved with divine devotion.</p>
+        </div>
+
+        <!-- Section 6: Mughal Era -->
+        <div id="sec-6" class="section-content">
+            <span class="section-era">1526 CE – 1857 CE</span>
+            <h2 class="section-title">Mughal Era</h2>
+            <p class="section-desc">An age of architectural magnificence. Gardens of paradise, intricate calligraphy, and the synthesis of Indo-Islamic culture created a legacy of marble and domes.</p>
+        </div>
+
+        <!-- Section 7: Freedom Struggle -->
+        <div id="sec-7" class="section-content">
+            <span class="section-era">1857 CE – 1947 CE</span>
+            <h2 class="section-title">Freedom Struggle</h2>
+            <p class="section-desc">The spark of independence. Through non-violence and supreme sacrifice, millions marched for a dream. The tricolor rose as a beacon of hope against the night.</p>
+        </div>
+
+        <!-- Section 8: Independence -->
+        <div id="sec-8" class="section-content">
+            <span class="section-era">August 15, 1947</span>
+            <h2 class="section-title">A New Dawn</h2>
+            <p class="section-desc">At the stroke of the midnight hour, when the world slept, India awoke to life and freedom. A democratic experiment of unprecedented scale began.</p>
+        </div>
+
+        <!-- Section 9: Modern India -->
+        <div id="sec-9" class="section-content">
+            <h2 class="section-title">Modern India</h2>
+            <p class="section-desc" style="font-size: 1.4rem; margin-bottom: 1rem;">From ISRO reaching the stars to the digital revolution.</p>
+            <p class="section-desc">India is not merely a nation — it is a civilization.</p>
+        </div>
+    </div>
+
+    <!-- Navigation Dots -->
+    <div id="progress-indicator">
+        <div class="nav-dot active" data-index="0"></div>
+        <div class="nav-dot" data-index="1"></div>
+        <div class="nav-dot" data-index="2"></div>
+        <div class="nav-dot" data-index="3"></div>
+        <div class="nav-dot" data-index="4"></div>
+        <div class="nav-dot" data-index="5"></div>
+        <div class="nav-dot" data-index="6"></div>
+        <div class="nav-dot" data-index="7"></div>
+        <div class="nav-dot" data-index="8"></div>
+        <div class="nav-dot" data-index="9"></div>
+    </div>
+
+    <!-- Audio Toggle -->
+    <div id="audio-toggle">Enable Sound</div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://unpkg.com/lenis@1.0.42/dist/lenis.min.js"></script>
+    <!-- Post Processing Dependencies -->
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+    <script>
+        // --- Configuration & State ---
+        const config = {
+            colors: {
+                bg: 0x030303,
+                gold: 0xD4AF37,
+                copper: 0xb87333,
+                stone: 0x2c2c2c,
+                accent: 0x1a237e
+            },
+            cameraSpeed: 0.0005
+        };
+
+        const state = {
+            scroll: 0,
+            targetScroll: 0,
+            currentSection: 0,
+            audioEnabled: false
+        };
+
+        // --- 1. Scene Setup ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(config.colors.bg);
+        scene.fog = new THREE.FogExp2(config.colors.bg, 0.02); // Volumetric feel
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ReinhardToneMapping;
+        container.appendChild(renderer.domElement);
+
+        // --- 2. Post Processing (Bloom) ---
+        const renderScene = new THREE.RenderPass(scene, camera);
+        
+        // Resolution, Strength, Radius, Threshold
+        const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+        bloomPass.threshold = 0;
+        bloomPass.strength = 1.2; // Intense glow for gold
+        bloomPass.radius = 0.5;
+
+        const composer = new THREE.EffectComposer(renderer);
+        composer.addPass(renderScene);
+        composer.addPass(bloomPass);
+
+        // --- 3. Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+        scene.add(ambientLight);
+
+        // A warm light that travels with the camera/scene
+        const mainLight = new THREE.PointLight(config.colors.gold, 2, 50);
+        scene.add(mainLight);
+
+        const blueLight = new THREE.PointLight(config.colors.accent, 1, 30); // Contrast light
+        scene.add(blueLight);
+
+        // --- 4. The Journey Path (Curve) ---
+        // We create a winding path through 3D space
+        const curvePoints = [
+            new THREE.Vector3(0, 0, 0),       // Start
+            new THREE.Vector3(5, 0, -10),     // Indus
+            new THREE.Vector3(0, -5, -20),    // Vedic
+            new THREE.Vector3(-5, 2, -30),    // Mauryan
+            new THREE.Vector3(2, 8, -45),     // Gupta
+            new THREE.Vector3(8, 5, -60),     // Medieval
+            new THREE.Vector3(-2, -2, -75),   // Mughal
+            new THREE.Vector3(-8, 5, -90),    // Freedom
+            new THREE.Vector3(0, 10, -110),   // Independence
+            new THREE.Vector3(0, 15, -130)    // Modern/Final
+        ];
+
+        const curve = new THREE.CatmullRomCurve3(curvePoints);
+        curve.tension = 0.5;
+
+        // Visualizing the path (The "Guide Line")
+        const tubeGeometry = new THREE.TubeGeometry(curve, 100, 0.05, 8, false);
+        const tubeMaterial = new THREE.MeshBasicMaterial({ 
+            color: config.colors.gold, 
+            transparent: true, 
+            opacity: 0.3 
+        });
+        const tubeMesh = new THREE.Mesh(tubeGeometry, tubeMaterial);
+        scene.add(tubeMesh);
+
+        // Particles floating along the path
+        const particleCount = 2000;
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesPos = [];
+        const particlesSizes = [];
+
+        for(let i=0; i<particleCount; i++) {
+            const t = Math.random();
+            const pos = curve.getPoint(t);
+            // Add some spread around the path
+            const spread = 2;
+            particlesPos.push(
+                pos.x + (Math.random() - 0.5) * spread,
+                pos.y + (Math.random() - 0.5) * spread,
+                pos.z + (Math.random() - 0.5) * spread
+            );
+            particlesSizes.push(Math.random());
+        }
+
+        particlesGeometry.setAttribute('position', new THREE.Float32BufferAttribute(particlesPos, 3));
+        particlesGeometry.setAttribute('size', new THREE.Float32BufferAttribute(particlesSizes, 1));
+
+        const particlesMaterial = new THREE.PointsMaterial({
+            color: config.colors.gold,
+            size: 0.1,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending
+        });
+
+        const particleSystem = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particleSystem);
+
+
+        // --- 5. Procedural Scene Objects (The "Artifacts") ---
+        const objectsGroup = new THREE.Group();
+        scene.add(objectsGroup);
+
+        const materialGold = new THREE.MeshStandardMaterial({
+            color: config.colors.gold,
+            roughness: 0.3,
+            metalness: 0.8,
+            emissive: 0x221100,
+            emissiveIntensity: 0.2
+        });
+
+        const materialStone = new THREE.MeshStandardMaterial({
+            color: config.colors.stone,
+            roughness: 0.9,
+            metalness: 0.1
+        });
+
+        const materialCopper = new THREE.MeshStandardMaterial({
+            color: config.colors.copper,
+            roughness: 0.4,
+            metalness: 0.6
+        });
+
+        // Helper to place objects along the curve
+        function placeObject(geometry, material, t, rotation, scale) {
+            const point = curve.getPoint(t);
+            const tangent = curve.getTangent(t);
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.copy(point);
+            mesh.lookAt(point.clone().add(tangent));
+            mesh.rotateY(Math.PI / 2); // Face the camera
+            mesh.rotation.x += rotation.x;
+            mesh.rotation.z += rotation.z;
+            mesh.scale.set(scale, scale, scale);
+            objectsGroup.add(mesh);
+            return mesh;
+        }
+
+        // SCENE 1: Indus (Bricks/City blocks)
+        for(let i=0; i<15; i++) {
+            const geo = new THREE.BoxGeometry(1, 1, 1);
+            const t = 0.1 + (i * 0.005);
+            const rot = {x: Math.random(), z: Math.random()};
+            const scale = Math.random() * 0.5 + 0.2;
+            placeObject(geo, materialStone, t, rot, scale);
+        }
+
+        // SCENE 2: Vedic (Pyramids/Fire shapes)
+        for(let i=0; i<10; i++) {
+            const geo = new THREE.ConeGeometry(0.5, 1, 4);
+            const t = 0.22 + (i * 0.008);
+            placeObject(geo, materialGold, t, {x:0, z:0}, 0.6);
+        }
+
+        // SCENE 3: Mauryan (Pillars)
+        const pillarGeo = new THREE.CylinderGeometry(0.1, 0.1, 4, 8);
+        const pillarPositions = [0.35, 0.37, 0.39];
+        pillarPositions.forEach(t => {
+            placeObject(pillarGeo, materialStone, t, {x:0, z:0}, 1);
+            // Add top capital
+            const capitalGeo = new THREE.BoxGeometry(1, 0.2, 1);
+            placeObject(capitalGeo, materialGold, t+0.005, {x:0, z:0}, 1);
+        });
+
+        // SCENE 4: Gupta (Floating Books/Planes)
+        for(let i=0; i<12; i++) {
+            const geo = new THREE.PlaneGeometry(0.8, 1.2);
+            const t = 0.48 + (i * 0.01);
+            const mesh = placeObject(geo, materialGold, t, {x:1, z:0.5}, 0.8);
+            // Double side material
+            mesh.material.side = THREE.DoubleSide;
+        }
+
+        // SCENE 5: Medieval (Temple spires/Lathe)
+        for(let i=0; i<8; i++) {
+            const geo = new THREE.ConeGeometry(1, 3, 6);
+            const t = 0.6 + (i * 0.015);
+            placeObject(geo, materialStone, t, {x:0.2, z:0}, 1.5);
+        }
+
+        // SCENE 6: Mughal (Domes)
+        for(let i=0; i<5; i++) {
+            const geo = new THREE.SphereGeometry(1.5, 16, 16, 0, Math.PI * 2, 0, Math.PI/2);
+            const t = 0.72 + (i * 0.02);
+            placeObject(geo, materialCopper, t, {x: -Math.PI/2, z:0}, 1.2);
+        }
+
+        // SCENE 7: Freedom (Abstract Flags/Triangles)
+        const flagGeo = new THREE.BufferGeometry();
+        const flagVertices = new Float32Array([0,0,0,  1,0,0,  0,1,0]);
+        flagGeo.setAttribute('position', new THREE.BufferAttribute(flagVertices, 3));
+        for(let i=0; i<20; i++) {
+            const mat = new THREE.MeshBasicMaterial({ color: Math.random() > 0.6 ? 0xFF9933 : (Math.random() > 0.3 ? 0xFFFFFF : 0x138808), side: THREE.DoubleSide });
+            const t = 0.82 + (i * 0.01);
+            const mesh = placeObject(flagGeo, mat, t, {x: Math.random(), z: Math.random()}, 2);
+            mesh.material.transparent = true;
+            mesh.material.opacity = 0.7;
+        }
+
+        // SCENE 8: Independence (Starburst)
+        const sunGeo = new THREE.SphereGeometry(2, 32, 32);
+        const sunMat = new THREE.MeshBasicMaterial({ color: 0xFFD700 });
+        const sun = placeObject(sunGeo, sunMat, 0.9, {x:0, z:0}, 1);
+
+        // SCENE 9: Modern (Wireframe Globe/Tech)
+        const globeGeo = new THREE.IcosahedronGeometry(2, 1);
+        const globeMat = new THREE.MeshBasicMaterial({ color: 0x00FFFF, wireframe: true });
+        const globe = placeObject(globeGeo, globeMat, 1.0, {x:0, z:0}, 1.5);
+
+
+        // --- 6. Lenis Smooth Scroll ---
+        const lenis = new Lenis({
+            duration: 2.5,
+            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            direction: 'vertical',
+            smooth: true,
+            mouseMultiplier: 1,
+            smoothTouch: false,
+            touchMultiplier: 2,
+        });
+
+        function raf(time) {
+            lenis.raf(time);
+            requestAnimationFrame(raf);
+        }
+        requestAnimationFrame(raf);
+
+        // --- 7. Animation Logic ---
+        
+        // Map scroll 0..1 to curve progress
+        // Since we have virtual scroll height (document height)
+        let scrollPercentage = 0;
+
+        lenis.on('scroll', (e) => {
+            scrollPercentage = e.scroll / e.limit;
+            state.targetScroll = scrollPercentage;
+        });
+
+        // DOM Elements for Sections
+        const sections = document.querySelectorAll('.section-content');
+        const navDots = document.querySelectorAll('.nav-dot');
+
+        // Custom Cursor
+        const cursor = document.getElementById('cursor');
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+            
+            // Subtle parallax on particles based on mouse
+            particleSystem.rotation.x = e.clientY * 0.0001;
+            particleSystem.rotation.y = e.clientX * 0.0001;
+        });
+
+        // Clicking dots
+        navDots.forEach(dot => {
+            dot.addEventListener('click', () => {
+                const index = parseInt(dot.dataset.index);
+                const targetPct = index / (sections.length - 1);
+                lenis.scrollTo(targetPct * document.body.scrollHeight);
+            });
+        });
+
+        // --- 8. Main Render Loop ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            const elapsedTime = clock.getElapsedTime();
+
+            // Smoothly interpolate current scroll to target scroll
+            state.scroll += (state.targetScroll - state.scroll) * 0.05;
+
+            // 1. Move Camera along Curve
+            // Clamp value slightly to avoid camera going past end
+            const camT = Math.max(0, Math.min(1, state.scroll));
+            const camPos = curve.getPoint(camT);
+            const camLookAt = curve.getPoint(Math.min(1, camT + 0.05)); // Look ahead slightly
+            
+            camera.position.lerp(camPos, 0.1);
+            
+            // Smooth LookAt using a dummy object or interpolation
+            const currentLook = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).add(camera.position);
+            currentLook.lerp(camLookAt, 0.1);
+            camera.lookAt(currentLook);
+
+            // 2. Update Lighting to follow camera
+            mainLight.position.copy(camera.position);
+            mainLight.position.z -= 2;
+            blueLight.position.copy(camera.position);
+            blueLight.position.x += 5;
+            blueLight.position.y += 2;
+
+            // 3. Animate Objects
+            objectsGroup.children.forEach((obj, i) => {
+                obj.rotation.y += 0.005;
+                // Float effect
+                obj.position.y += Math.sin(elapsedTime + i) * 0.002;
+            });
+
+            // Rotate Globe and Sun
+            if(globe) {
+                globe.rotation.y += 0.01;
+                globe.rotation.z += 0.005;
+            }
+            if(sun) {
+                sun.rotation.z -= 0.002;
+            }
+
+            // 4. Update DOM Sections based on Scroll
+            const totalSections = sections.length;
+            const activeIndex = Math.floor(camT * (totalSections - 0.99)); // Determine which section is visible
+
+            if (activeIndex !== state.currentSection) {
+                // Hide previous
+                sections[state.currentSection].classList.remove('active');
+                navDots[state.currentSection].classList.remove('active');
+                
+                // Show new
+                state.currentSection = activeIndex;
+                sections[state.currentSection].classList.add('active');
+                navDots[state.currentSection].classList.add('active');
+
+                // Add hover effect to cursor for interactive feel
+                cursor.classList.add('hovered');
+                setTimeout(() => cursor.classList.remove('hovered'), 500);
+            }
+
+            // 5. Render
+            composer.render();
+            requestAnimationFrame(animate);
+        }
+
+        // --- 9. Initialization & Resize ---
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+            bloomPass.setSize(new THREE.Vector2(window.innerWidth, window.innerHeight));
+        });
+
+        // Set virtual height for Lenis (smooth scroll container)
+        document.body.style.height = '600vh'; // 6 screens of scroll
+
+        // Loader Logic
+        window.addEventListener('load', () => {
+            const fill = document.getElementById('progress-fill');
+            const loader = document.getElementById('loader');
+            
+            // Simulate loading
+            let width = 0;
+            const interval = setInterval(() => {
+                width += 5;
+                fill.style.width = width + '%';
+                if(width >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        loader.style.opacity = '0';
+                        setTimeout(() => {
+                            loader.style.display = 'none';
+                            // Start animation loop
+                            animate();
+                        }, 1500);
+                    }, 500);
+                }
+            }, 50);
+        });
+
+        // Audio Logic (Visual only for this demo - creates ambience feel)
+        const audioBtn = document.getElementById('audio-toggle');
+        audioBtn.addEventListener('click', () => {
+            state.audioEnabled = !state.audioEnabled;
+            if(state.audioEnabled) {
+                audioBtn.textContent = "Sound On";
+                audioBtn.style.background = "rgba(212, 175, 55, 0.2)";
+                // In a real app, audio.play() here
+            } else {
+                audioBtn.textContent = "Enable Sound";
+                audioBtn.style.background = "transparent";
+            }
+        });
+
+    </script>
+</body>
+</html>
